@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>QVB#4 Memory Match - จำให้ไว ไต่โบนัส 130%</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #080c18;
+      font-family: 'Prompt', sans-serif;
+      color: #ffffff;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      height: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 15%, #102544 0%, #060913 100%);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Screen Overlays */
+    .screen {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 14px;
+      z-index: 30;
+      background: rgba(6, 9, 19, 0.96);
+      backdrop-filter: blur(8px);
+      overflow-y: auto;
+    }
+    .hidden { display: none !important; }
+
+    /* HUD Top Bar */
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: rgba(15, 23, 42, 0.85);
+      border-bottom: 1.5px solid rgba(56, 189, 248, 0.3);
+      z-index: 10;
+    }
+    .hud-chip {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 4px 10px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .hud-label { font-size: 10px; color: #94a3b8; font-weight: 600; }
+    .hud-value { font-size: 16px; font-weight: 900; color: #38bdf8; }
+    .hud-value.timer { color: #f59e0b; }
+    .hud-value.combo { color: #ec4899; }
+
+    /* 3D Memory Card Grid */
+    #grid-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 8px;
+      padding: 10px 10px 14px 10px;
+      perspective: 1000px;
+    }
+    .card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 12px;
+    }
+    .card.flipped {
+      transform: rotateY(180deg);
+    }
+    .card.matched {
+      transform: rotateY(180deg) scale(0.96);
+      opacity: 0.55;
+      pointer-events: none;
+      filter: grayscale(40%);
+    }
+
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Card Back (Hidden) */
+    .card-front-cover {
+      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+      border: 1.5px solid rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
+    }
+    .card-front-cover .logo-icon {
+      font-size: 24px;
+      margin-bottom: 2px;
+      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+    }
+    .card-front-cover .cover-text {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+    }
+
+    /* Card Face (Revealed Content) */
+    .card-back-content {
+      transform: rotateY(180deg);
+      background: #0f172a;
+      border: 2px solid #38bdf8;
+    }
+    .card-tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .card-main-text {
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.15;
+    }
+    .card-sub-text {
+      font-size: 10px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-top: 2px;
+    }
+
+    /* Card Color Schemes by Match Level */
+    .theme-gold { border-color: #facc15 !important; background: radial-gradient(circle, #2a2004 0%, #0e121e 100%) !important; color: #facc15; }
+    .theme-emerald { border-color: #10b981 !important; background: radial-gradient(circle, #02251a 0%, #0e121e 100%) !important; color: #34d399; }
+    .theme-cyan { border-color: #06b6d4 !important; background: radial-gradient(circle, #03232c 0%, #0e121e 100%) !important; color: #38bdf8; }
+    .theme-blue { border-color: #3b82f6 !important; background: radial-gradient(circle, #051a3a 0%, #0e121e 100%) !important; color: #60a5fa; }
+    .theme-orange { border-color: #f97316 !important; background: radial-gradient(circle, #2e1305 0%, #0e121e 100%) !important; color: #fb923c; }
+    .theme-rose { border-color: #f43f5e !important; background: radial-gradient(circle, #2e0811 0%, #0e121e 100%) !important; color: #fb7185; }
+
+    /* Buttons */
+    .btn-start {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid #fde047;
+      border-radius: 18px;
+      font-size: 20px;
+      font-weight: 900;
+      font-family: 'Prompt', sans-serif;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #0f172a;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+      animation: pulse-btn 1.6s infinite;
+    }
+    .btn-start:active { transform: scale(0.97); }
+    @keyframes pulse-btn {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    /* Floating Feedback */
+    .float-notice {
+      position: absolute;
+      top: 45%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 26px;
+      font-weight: 900;
+      pointer-events: none;
+      z-index: 25;
+      text-shadow: 0 0 16px rgba(0, 0, 0, 0.8);
+      animation: float-up 0.75s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    @keyframes float-up {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.7); }
+      30% { opacity: 1; transform: translate(-50%, -20px) scale(1.15); }
+      100% { opacity: 0; transform: translate(-50%, -60px) scale(1); }
+    }
+
+    /* Table Preview on Start */
+    .cheat-box {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin: 10px 0;
+      font-size: 11px;
+    }
+    .cheat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    }
+    .cheat-row:last-child { border: none; }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+
+  <!-- HUD IN-GAME -->
+  <div id="hud">
+    <div class="hud-chip">
+      <div class="hud-label">เวลาที่เหลือ</div>
+      <div id="hud-timer" class="hud-value timer">60s</div>
+    </div>
+    <div class="hud-chip">
+      <div class="hud-label">คู่ที่จับได้</div>
+      <div id="hud-pairs" class="hud-value">0/6</div>
+    </div>
+    <div class="hud-chip">
+      <div class="hud-label">คะแนนรวม</div>
+      <div id="hud-score" class="hud-value">0</div>
+    </div>
+    <div class="hud-chip">
+      <div class="hud-label">COMBO</div>
+      <div id="hud-combo" class="hud-value combo">0x</div>
+    </div>
+  </div>
+
+  <!-- FLOATING ANNOUNCER -->
+  <div id="floatNotice"></div>
+
+  <!-- 3x4 CARDS GRID -->
+  <div id="grid-container"></div>
+
+  <!-- SCREEN 1: START SCREEN -->
+  <div id="startScreen" class="screen">
+    <div style="text-align: center; margin-top: 4px;">
+      <span style="background:#f59e0b; color:#0f172a; padding:3px 12px; border-radius:99px; font-size:11px; font-weight:800;">
+        🧠 บูธประลองความจำฝ่ายขาย
+      </span>
+      <h1 style="font-size: 24px; font-weight: 900; margin-top: 6px; line-height: 1.2;">
+        QVB#4 MEMORY MATCH
+      </h1>
+      <p style="font-size: 12px; color: #94a3b8;">จับคู่ P% กับตัวคูณโบนัสให้ถูกต้องใน 60 วินาที!</p>
+    </div>
+
+    <!-- CHEAT SHEET HINT -->
+    <div class="cheat-box">
+      <div style="font-weight: 800; color: #38bdf8; margin-bottom: 4px; text-align: center;">
+        📖 จำตารางนี้ให้แม่นก่อนเริ่ม!
+      </div>
+      <div class="cheat-row"><span style="color:#facc15; font-weight:700;">P% > 95%</span><span>ตัวคูณ 130% (สูงสุด) 🏆</span></div>
+      <div class="cheat-row"><span style="color:#34d399; font-weight:700;">P% 90 - 95%</span><span>ตัวคูณ 125% (TNQA) 🎖️</span></div>
+      <div class="cheat-row"><span style="color:#38bdf8; font-weight:700;">P% 85 - 90%</span><span>ตัวคูณ 115% 🛡️</span></div>
+      <div class="cheat-row"><span style="color:#60a5fa; font-weight:700;">P% 80 - 85%</span><span>ตัวคูณ 100% ⚖️</span></div>
+      <div class="cheat-row"><span style="color:#fb923c; font-weight:700;">P% 75 - 80%</span><span>ตัวคูณ 80% ⚠️</span></div>
+      <div class="cheat-row"><span style="color:#fb7185; font-weight:700;">P% ≤ 65%</span><span>ตัวคูณ 30% 💥</span></div>
+    </div>
+
+    <div>
+      <button class="btn-start" onclick="startGame()">
+        🚀 แตะเพื่อเริ่มจับเวลา 60s 🚀
+      </button>
+      <p style="text-align:center; font-size:11px; color:#64748b; margin-top:8px;">
+        จับคู่ครบ 6 คู่จะสลับชุดใหม่เพื่อเก็บคะแนนโบนัสต่อเนื่อง!
+      </p>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: GAME OVER / REPORT -->
+  <div id="resultScreen" class="screen hidden">
+    <div style="text-align:center;">
+      <span style="background:#38bdf8; color:#0f172a; padding:3px 12px; border-radius:99px; font-size:11px; font-weight:800;">
+        🏁 หมดเวลา 60 วินาที!
+      </span>
+      <h1 style="font-size: 26px; font-weight: 900; margin-top: 6px;">MISSION COMPLETE</h1>
+      <p style="font-size: 12px; color: #94a3b8;">ผลทดสอบความจำตารางความยั่งยืน</p>
+    </div>
+
+    <div style="background: radial-gradient(circle at 50% 0%, #1e293b 0%, #090e1a 100%); border:2px solid #f59e0b; border-radius:20px; padding:18px; text-align:center;">
+      <div id="resIcon" style="font-size: 50px;">🧠</div>
+      <div id="resTitle" style="font-size: 20px; font-weight: 900; color: #facc15; margin-top:4px;">
+        QVB#4 Memory Master!
+      </div>
+      <div id="resSub" style="font-size: 12px; color: #cbd5e1; margin-top:2px;">
+        สายตาเฉียบคม จำตัวคูณโบนัสได้แม่นยำ
+      </div>
+
+      <div style="display:flex; justify-content:space-around; margin:14px 0; background:rgba(11,19,36,0.7); padding:10px; border-radius:12px;">
+        <div>
+          <div style="font-size:10px; color:#94a3b8;">คะแนนรวม</div>
+          <div id="resScore" style="font-size:20px; font-weight:900; color:#38bdf8;">0</div>
+        </div>
+        <div>
+          <div style="font-size:10px; color:#94a3b8;">จับคู่สำเร็จ</div>
+          <div id="resPairs" style="font-size:20px; font-weight:900; color:#34d399;">0 คู่</div>
+        </div>
+        <div>
+          <div style="font-size:10px; color:#94a3b8;">คอมโบสูงสุด</div>
+          <div id="resCombo" style="font-size:20px; font-weight:900; color:#f43f5e;">0x</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px; color:#a7f3d0; background:rgba(16,185,129,0.15); border:1px dashed #10b981; padding:8px; border-radius:10px;">
+        🎁 บันทึกหน้าจอนี้แสดงต่อเจ้าหน้าที่บูธเพื่อรับของที่ระลึกพิเศษ!
+      </div>
+    </div>
+
+    <button class="btn-start" onclick="restartGame()">
+      🔄 เล่นใหม่อีกครั้ง (Retry)
+    </button>
+  </div>
+
+</div>
+
+<script>
+  // Web Audio Synthesizer (No external files)
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playTone(freq, type, duration, delay=0, vol=0.15) {
+    if (!audioCtx) return;
+    try {
+      setTimeout(() => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      }, delay);
+    } catch(e) {}
+  }
+
+  function sndFlip() { playTone(450, 'sine', 0.08, 0, 0.12); }
+  function sndMatch() {
+    playTone(523.25, 'triangle', 0.1, 0, 0.2); // C5
+    playTone(659.25, 'triangle', 0.1, 60, 0.2); // E5
+    playTone(783.99, 'triangle', 0.2, 120, 0.25); // G5
+  }
+  function sndFail() {
+    playTone(220, 'sawtooth', 0.18, 0, 0.25);
+    playTone(180, 'sawtooth', 0.22, 100, 0.25);
+    if (navigator.vibrate) navigator.vibrate(80);
+  }
+  function sndClear() {
+    playTone(587.33, 'triangle', 0.1, 0, 0.2);
+    playTone(880.00, 'triangle', 0.1, 80, 0.25);
+    playTone(1174.66, 'triangle', 0.3, 160, 0.3);
+  }
+
+  // 6 Thematic Pairs (P% vs Modifier)
+  const PAIRS_DATA = [
+    {
+      id: 1, theme: 'theme-gold',
+      cardA: { tag: 'PERSISTENCY', main: 'P% > 95%', sub: 'ระดับสูงสุด' },
+      cardB: { tag: 'MODIFIER', main: 'ตัวคูณ 130%', sub: 'โบนัสเต็ม 100%' }
+    },
+    {
+      id: 2, theme: 'theme-emerald',
+      cardA: { tag: 'PERSISTENCY', main: 'P% 90-95%', sub: 'เกณฑ์คุณวุฒิ' },
+      cardB: { tag: 'MODIFIER', main: 'ตัวคูณ 125%', sub: 'โบนัสพิเศษ' }
+    },
+    {
+      id: 3, theme: 'theme-cyan',
+      cardA: { tag: 'PERSISTENCY', main: 'P% 85-90%', sub: 'เกณฑ์ปลอดภัย' },
+      cardB: { tag: 'MODIFIER', main: 'ตัวคูณ 115%', sub: 'โบนัสดี' }
+    },
+    {
+      id: 4, theme: 'theme-blue',
+      cardA: { tag: 'PERSISTENCY', main: 'P% 80-85%', sub: 'เกณฑ์มาตรฐาน' },
+      cardB: { tag: 'MODIFIER', main: 'ตัวคูณ 100%', sub: 'โบนัสฐาน' }
+    },
+    {
+      id: 5, theme: 'theme-orange',
+      cardA: { tag: 'PERSISTENCY', main: 'P% 75-80%', sub: 'เริ่มเฝ้าระวัง' },
+      cardB: { tag: 'MODIFIER', main: 'ตัวคูณ 80%', sub: 'โดนตัด 20%' }
+    },
+    {
+      id: 6, theme: 'theme-rose',
+      cardA: { tag: 'PERSISTENCY', main: 'P% ≤ 65%', sub: 'ระดับวิกฤต' },
+      cardB: { tag: 'MODIFIER', main: 'ตัวคูณ 30%', sub: 'หลุดเป้าหนัก' }
+    }
+  ];
+
+  let gameTime = 60;
+  let timerInterval = null;
+  let score = 0;
+  let combo = 0;
+  let maxCombo = 0;
+  let totalPairsMatched = 0;
+  let roundPairs = 0;
+  let isLocked = false;
+  let flippedCards = [];
+
+  const gridContainer = document.getElementById('grid-container');
+
+  function showNotice(text, color='#facc15') {
+    const el = document.getElementById('floatNotice');
+    el.innerHTML = `<div class="float-notice" style="color:${color};">${text}</div>`;
+    setTimeout(() => { el.innerHTML = ''; }, 750);
+  }
+
+  // Generate & Shuffle 12 Cards (6 Pairs)
+  function setupCards() {
+    gridContainer.innerHTML = '';
+    roundPairs = 0;
+    flippedCards = [];
+
+    let deck = [];
+    PAIRS_DATA.forEach(p => {
+      deck.push({ pairId: p.id, theme: p.theme, ...p.cardA });
+      deck.push({ pairId: p.id, theme: p.theme, ...p.cardB });
+    });
+
+    // Fisher-Yates Shuffle
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+
+    deck.forEach(c => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.dataset.pairId = c.pairId;
+
+      cardEl.innerHTML = `
+        <div class="card-face card-front-cover">
+          <div class="logo-icon">💎</div>
+          <div class="cover-text">QVB#4</div>
+        </div>
+        <div class="card-face card-back-content ${c.theme}">
+          <span class="card-tag" style="background:rgba(255,255,255,0.18);">${c.tag}</span>
+          <div class="card-main-text">${c.main}</div>
+          <div class="card-sub-text">${c.sub}</div>
+        </div>
+      `;
+
+      cardEl.addEventListener('click', () => onCardClicked(cardEl));
+      gridContainer.appendChild(cardEl);
+    });
+
+    updateHUD();
+  }
+
+  function onCardClicked(cardEl) {
+    if (isLocked || cardEl.classList.contains('flipped') || cardEl.classList.contains('matched')) {
+      return;
+    }
+
+    sndFlip();
+    cardEl.classList.add('flipped');
+    flippedCards.push(cardEl);
+
+    if (flippedCards.length === 2) {
+      checkMatch();
+    }
+  }
+
+  function checkMatch() {
+    isLocked = true;
+    const [card1, card2] = flippedCards;
+    const match = card1.dataset.pairId === card2.dataset.pairId;
+
+    if (match) {
+      combo++;
+      if (combo > maxCombo) maxCombo = combo;
+      totalPairsMatched++;
+      roundPairs++;
+
+      const comboBonus = (combo > 1) ? combo * 150 : 0;
+      const pts = 500 + comboBonus;
+      score += pts;
+
+      sndMatch();
+      showNotice(combo > 1 ? `COMBO x${combo}! +${pts}` : `MATCH! +${pts}`, '#34d399');
+
+      setTimeout(() => {
+        card1.classList.add('matched');
+        card2.classList.add('matched');
+        flippedCards = [];
+        isLocked = false;
+        updateHUD();
+
+        // If cleared all 6 pairs in this round
+        if (roundPairs === 6) {
+          sndClear();
+          showNotice('🎉 ROUND CLEAR! +1,500', '#facc15');
+          score += 1500;
+          setTimeout(() => {
+            setupCards(); // Start fresh round with remaining time!
+          }, 500);
+        }
+      }, 400);
+
+    } else {
+      combo = 0;
+      sndFail();
+      showNotice('MISMATCH!', '#fb7185');
+
+      setTimeout(() => {
+        card1.classList.remove('flipped');
+        card2.classList.remove('flipped');
+        flippedCards = [];
+        isLocked = false;
+        updateHUD();
+      }, 800);
+    }
+  }
+
+  function updateHUD() {
+    document.getElementById('hud-timer').innerText = `${gameTime}s`;
+    document.getElementById('hud-pairs').innerText = `${roundPairs}/6`;
+    document.getElementById('hud-score').innerText = score.toLocaleString();
+    document.getElementById('hud-combo').innerText = `${combo}x`;
+  }
+
+  function startGame() {
+    initAudio();
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('resultScreen').classList.add('hidden');
+
+    gameTime = 60;
+    score = 0;
+    combo = 0;
+    maxCombo = 0;
+    totalPairsMatched = 0;
+
+    setupCards();
+
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      gameTime--;
+      updateHUD();
+      if (gameTime <= 0) {
+        endGame();
+      }
+    }, 1000);
+  }
+
+  function endGame() {
+    clearInterval(timerInterval);
+    document.getElementById('resultScreen').classList.remove('hidden');
+
+    document.getElementById('resScore').innerText = score.toLocaleString();
+    document.getElementById('resPairs').innerText = `${totalPairsMatched} คู่`;
+    document.getElementById('resCombo').innerText = `${maxCombo}x`;
+
+    const iconEl = document.getElementById('resIcon');
+    const titleEl = document.getElementById('resTitle');
+    const subEl = document.getElementById('resSub');
+
+    if (totalPairsMatched >= 12) {
+      iconEl.innerText = '👑';
+      titleEl.innerText = 'Godlike Modifier Master!';
+      subEl.innerText = 'สุดยอดอัจฉริยะ! กวาดเรียบ 2 รอบเต็ม พร้อมรับโบนัส 130%';
+    } else if (totalPairsMatched >= 6) {
+      iconEl.innerText = '🏆';
+      titleEl.innerText = 'QVB#4 Memory Champion!';
+      subEl.innerText = 'ยอดเยี่ยมมาก! จำตารางความยั่งยืนได้ครบถ้วนในพริบตา';
+    } else {
+      iconEl.innerText = '🥈';
+      titleEl.innerText = 'Rising Memory Fighter';
+      subEl.innerText = 'ฝึกฝนอีกนิด จำตัวคูณให้แม่น แล้วมาประลองใหม่นะ!';
+    }
+  }
+
+  function restartGame() {
+    document.getElementById('resultScreen').classList.add('hidden');
+    document.getElementById('startScreen').classList.remove('hidden');
+  }
+</script>
+
+</body>
+</html>
